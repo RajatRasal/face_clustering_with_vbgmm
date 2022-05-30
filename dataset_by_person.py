@@ -1,4 +1,5 @@
 import concurrent
+from collections import Counter
 from tqdm import tqdm
 from typing import Set
 from torchvision.datasets import CelebA
@@ -24,6 +25,14 @@ class CelebAByPerson(CelebA):
 
     def __len__(self) -> int:
         return len(self.idxs)
+
+def init_dataset_most_common(root='.' , top_k=50):
+    dataset = CelebA(root=root)
+    identities = dataset.identity.flatten().tolist()
+    most_common = Counter(identities).most_common(top_k)
+    ids = [_id for _id, _ in most_common]
+    dataset = CelebAByPerson(ids=ids, root=root)
+    return dataset
 
 
 if __name__ == "__main__":
