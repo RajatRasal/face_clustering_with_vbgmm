@@ -1,17 +1,17 @@
-import concurrent
+import random
 from collections import Counter
-from tqdm import tqdm
-from typing import Set
+
 from torchvision.datasets import CelebA
+from typing import Set
 
 
 class CelebAByPerson(CelebA):
-
     def __init__(self, ids: Set[int], **kwargs):
+        # TODO: Download all the CelebA data from Google Drive
         kwargs['download'] = False
         super().__init__(**kwargs)
 
-        self.target_type = ['attr', 'identity', 'bbox', 'landmarks']
+        self.target_type = ['identity']
         self.ids = ids
 
         self.idxs = [
@@ -26,13 +26,17 @@ class CelebAByPerson(CelebA):
     def __len__(self) -> int:
         return len(self.idxs)
 
-def init_dataset_most_common(root='.' , top_k=50):
+def most_common_ids_celeba(root='.', top_k=50):
     dataset = CelebA(root=root)
     identities = dataset.identity.flatten().tolist()
-    most_common = Counter(identities).most_common(top_k)
-    ids = [_id for _id, _ in most_common]
-    dataset = CelebAByPerson(ids=ids, root=root)
-    return dataset
+    chosen_ids = [_id for _id, _ in Counter(identities).most_common(top_k)]
+    return chosen_ids
+
+def random_ids_celeba(root='.', top_k=50, seed=42):
+    dataset = CelebA(root=root)
+    identities = dataset.identity.flatten().tolist()
+    chosen_ids = random.sample(identities, top_k, seed=seed)
+    return chosen_ids
 
 
 if __name__ == "__main__":
