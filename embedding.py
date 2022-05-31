@@ -4,10 +4,14 @@ import mlflow
 import numpy as np
 from facenet_pytorch import MTCNN, InceptionResnetV1
 from functools import partial
+from mlflow.tracking.client import MlflowClient
+from mlflow.entities import ViewType
 from tqdm import tqdm
 
 from dataset_by_person import CelebAByPerson, random_ids_celeba, most_common_ids_celeba
 
+
+EMBEDDING_ARTIFACT_NAME = 'face_det_and_embed.npy'
 
 def face_detection_and_embedding(dataset, embedder, batch_size=32, margin=20):
     # Note: Assuming that all the datasets we're using have 1 face per image
@@ -42,6 +46,24 @@ def face_detection_and_embedding(dataset, embedder, batch_size=32, margin=20):
         'embeddings': all_embeddings,
     }
 
+def get_artifact_run(tags):
+    query = [
+        f"tag.`{key}` = '{value}'"
+        for key, value in tags.items()
+    ]
+    query = " and ".join(query)
+
+    all_experiments = [
+        exp.experiment_id
+        for exp in MlflowClient().list_experiments()
+    ]
+    runs = MlflowClient().search_runs(
+        experiment_ids=all_experiments,
+        filter_string=query,
+        run_view_type=ViewType.ACTIVE_ONLY,
+    )
+
+    return runs
 
 def main(
     dataset: str,
@@ -82,17 +104,21 @@ def main(
         "embedder": embedder,
     }
 
+    if len(get_artifact_run(tags)) != 0:
+        print('Artifact exists')
+        return
+
     results = face_detection_and_embedding(
         ds,
         embedding_net,
         batch_size=batch_size,
         margin=margin
     )
-    np.save('face_det_and_embed.npy', results)
+    np.save(EMBEDDING_ARTIFACT_NAME, results)
 
-    with mlflow.start_run():
+    with mlflow.start_run(run_name="Dataset"):
         mlflow.set_tags(tags)
-        mlflow.log_artifact('embeddings.npy')
+        mlflow.log_artifact(EMBEDDING_ARTIFACT_NAME)
 
 
 if __name__ == '__main__':
