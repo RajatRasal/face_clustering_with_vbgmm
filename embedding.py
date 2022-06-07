@@ -40,6 +40,8 @@ def face_detection_and_embedding(dataset, embedder, batch_size=32, margin=20):
                 all_faces.append(face.detach().numpy())
                 all_ids.append(_id)
 
+    assert len(all_embeddings) == len(all_ids)
+
     return {
         'ids': all_ids,
         'faces': all_faces,

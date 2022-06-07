@@ -1,7 +1,8 @@
 import mlflow
 import numpy as np
-from sklearn.mixture import GaussianMixture, BayesianGaussianMixture
+from sklearn.mixture import BayesianGaussianMixture
 
+import metrics
 from embedding import get_artifact_run, EMBEDDING_ARTIFACT_NAME
 
 params = {
@@ -20,6 +21,7 @@ tags = {
     "embedder": "facenet_vggface2",
 }
 
+# TODO: Make experiment with these dataset tags and VBGMM
 
 # TODO: Put all datasets under the same experiment
 run = get_artifact_run(tags)[0]
@@ -29,14 +31,23 @@ artifact = mlflow.artifacts.download_artifacts(
 data = np.load(f"{artifact}/{EMBEDDING_ARTIFACT_NAME}", allow_pickle=True)[()]
 
 embeddings_arr = np.concatenate(data["embeddings"])
-print(embeddings_arr.shape)
 
 def train_model(params):
     vbgmm = BayesianGaussianMixture(**params)
     mlflow.sklearn.log_model(vbgmm, "model")
     clusters = vbgmm.fit_predict(embeddings_arr)
+    return clusters
 
 mlflow.sklearn.autolog()
 with mlflow.start_run(run_name="vbgmm"):
-    # TODO: Include tags for run and artifact.
-    train_model(params)
+    # TODO: GridSearch
+    # Automatically logs hyperparameters
+    clusters = train_model(params)
+
+true_clusters = np.array(data["ids"])
+_metrics = metrics.metrics(true_clusters, clusters)
+print(_metrics)
+jsd = metrics.jensen_shannon_distance(
+    true_clusters, clusters, tags["identities"]
+)
+print(jsd)
